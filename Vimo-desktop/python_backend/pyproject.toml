@@ -43,6 +43,7 @@ dependencies = [
     "accelerate>=0.25.0",
     "bitsandbytes>=0.41.0;platform_system!='Darwin'",
     "pillow>=10.0.0",
+    "sentencepiece",  # Required for LLaVA tokenizer
 
     # Server
     "flask",
