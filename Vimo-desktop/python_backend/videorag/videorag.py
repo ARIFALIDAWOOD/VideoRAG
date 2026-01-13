@@ -363,6 +363,7 @@ class VideoRAG:
                     segment_times_info,
                     captions,
                     self.safe_config,
+                    progress_callback=progress_callback,
             )
 
             segments_information = merge_segment_information(

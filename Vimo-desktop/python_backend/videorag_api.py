@@ -686,12 +686,25 @@ def index_video_worker_process(chat_id, video_path_list, global_config, server_u
         )
 
         # Define progress callback - directly write to JSON file
-        def progress_callback(step_name, message, indexed_video_path=None):
+        def progress_callback(step_name, message, indexed_video_path=None, current_frame=None, total_frames=None):
             status_data = {
                 "status": "processing" if step_name != "Completed" else "completed",
                 "message": message,
                 "current_step": step_name
             }
+            
+            # Add frame progress information if available
+            if current_frame is not None and total_frames is not None:
+                status_data["current_frame"] = current_frame
+                status_data["total_frames"] = total_frames
+                # Calculate percentage for frame progress message
+                percentage = int((current_frame / total_frames * 100)) if total_frames > 0 else 0
+                status_data["frame_progress"] = f"Frame {current_frame}/{total_frames} ({percentage}%)"
+            else:
+                status_data["current_frame"] = None
+                status_data["total_frames"] = None
+                status_data["frame_progress"] = None
+            
             update_status(status_data)
             
             # If a video is completed, add it to the indexed list
@@ -1098,7 +1111,10 @@ def register_routes(app):
                     "chat_id": chat_id,
                     "status": status_info.get("status"),
                     "message": status_info.get("message"),
-                    "current_step": status_info.get("current_step")
+                    "current_step": status_info.get("current_step"),
+                    "current_frame": status_info.get("current_frame"),
+                    "total_frames": status_info.get("total_frames"),
+                    "frame_progress": status_info.get("frame_progress")
                 })
             
         except Exception as e:

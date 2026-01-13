@@ -17,6 +17,13 @@ def encode_pil_image(pil_image):
     return base64.b64encode(buffer.read()).decode("utf-8")
 
 def encode_video(video, frame_times):
+    """
+    Encode video frames to base64 images
+    
+    Args:
+        video: VideoFileClip object
+        frame_times: List of frame timestamps to extract
+    """
     frames = []
     for t in frame_times:
         frames.append(video.get_frame(t))
@@ -44,19 +51,41 @@ async def _process_single_caption(caption_model_func, index, video_frames, segme
         logger.info(f"❌ Caption failed for segment {index}: {str(e)}")
         return index, ""
 
-async def segment_caption_async(video_name, video_path, segment_index2name, transcripts, segment_times_info, global_config):
+async def segment_caption_async(video_name, video_path, segment_index2name, transcripts, segment_times_info, global_config, progress_callback=None):
     """Async caption generation with concurrent processing"""
     caption_model_func = global_config["llm"]["caption_model_func"]
     
-    logger.info(f"🎬 Extracting frames for {len(segment_index2name)} segments...")
+    # Calculate total frames across all segments for progress tracking
+    total_frames = sum(len(segment_times_info[index]["frame_times"]) for index in segment_index2name)
+    
+    logger.info(f"🎬 Extracting frames for {len(segment_index2name)} segments (total {total_frames} frames)...")
+    
+    current_frame = 0
+    segment_data = {}
+    
     with VideoFileClip(video_path) as video:
-        segment_data = {
-            index: {
-                'frames': encode_video(video, segment_times_info[index]["frame_times"]),
+        for index in segment_index2name:
+            frame_times = segment_times_info[index]["frame_times"]
+            num_frames = len(frame_times)
+            
+            # Extract frames
+            frames = encode_video(video, frame_times)
+            
+            # Update progress after each segment's frames are extracted
+            if progress_callback:
+                current_frame += num_frames
+                percentage = int((current_frame / total_frames * 100)) if total_frames > 0 else 0
+                progress_callback(
+                    "Visual Analyzing",
+                    f"Analyzing video content for {video_name}... | Frame {current_frame}/{total_frames} ({percentage}%)",
+                    current_frame=current_frame,
+                    total_frames=total_frames
+                )
+            
+            segment_data[index] = {
+                'frames': frames,
                 'transcript': transcripts[index]
             }
-            for index in segment_index2name
-        }
     
     logger.info(f"🎨 Starting caption generation for {len(segment_index2name)} segments...")
     
@@ -73,11 +102,11 @@ async def segment_caption_async(video_name, video_path, segment_index2name, tran
     logger.info(f"🎉 Caption generation completed! Generated {len(caption_result)} captions successfully.")
     return caption_result
 
-def segment_caption(video_name, video_path, segment_index2name, transcripts, segment_times_info, caption_result, global_config):
+def segment_caption(video_name, video_path, segment_index2name, transcripts, segment_times_info, caption_result, global_config, progress_callback=None):
     """Worker function for multiprocessing"""
     try:
         result = asyncio.run(
-            segment_caption_async(video_name, video_path, segment_index2name, transcripts, segment_times_info, global_config)
+            segment_caption_async(video_name, video_path, segment_index2name, transcripts, segment_times_info, global_config, progress_callback=progress_callback)
         )
         for index, caption in result.items():
             caption_result[index] = caption
