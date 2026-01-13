@@ -26,7 +26,7 @@ import warnings
 warnings.filterwarnings("ignore")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-from videorag._llm import LLMConfig, openai_embedding, gpt_complete, dashscope_caption_complete
+from videorag._llm import LLMConfig, openai_embedding, gpt_complete, llava_caption_complete
 from videorag import VideoRAG, QueryParam
 
 # Log recording function
@@ -41,10 +41,20 @@ def log_to_file(message, log_file="log.txt"):
     try:
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] {message}\n")
-        print(f"[LOG] {message}")  # Add prefix to distinguish
+        # Safely print to console (handle Windows encoding issues)
+        try:
+            print(f"[LOG] {message}")
+        except UnicodeEncodeError:
+            # Strip non-ASCII characters for Windows console
+            safe_msg = message.encode('ascii', 'replace').decode('ascii')
+            print(f"[LOG] {safe_msg}")
     except Exception as e:
-        print(f"[ERROR] Failed to write to log: {e}")
-        print(f"[LOG] {message}")  # At least output to console
+        try:
+            print(f"[ERROR] Failed to write to log: {e}")
+            print(f"[LOG] {message}")
+        except UnicodeEncodeError:
+            safe_msg = message.encode('ascii', 'replace').decode('ascii')
+            print(f"[LOG] {safe_msg}")
 
 # New: JSON status management tool function
 def write_status_json(file_path: str, status_data: dict):
@@ -53,8 +63,8 @@ def write_status_json(file_path: str, status_data: dict):
     try:
         with open(temp_file, 'w', encoding='utf-8') as f:
             json.dump(status_data, f, ensure_ascii=False, indent=2)
-        # Atomic rename
-        os.rename(temp_file, file_path)
+        # Atomic replace (works on Windows even if dest exists)
+        os.replace(temp_file, file_path)
     except Exception as e:
         if os.path.exists(temp_file):
             os.remove(temp_file)
@@ -642,7 +652,7 @@ def index_video_worker_process(chat_id, video_path_list, global_config, server_u
         # Create VideoRAG instance
         session_working_dir = os.path.join(base_storage_path, f"chat-{chat_id}")
         os.makedirs(session_working_dir, exist_ok=True)
-        
+
         videorag_llm_config = LLMConfig(
             embedding_func_raw=openai_embedding,
             embedding_model_name="text-embedding-3-small",
@@ -652,30 +662,29 @@ def index_video_worker_process(chat_id, video_path_list, global_config, server_u
             embedding_func_max_async=16,
             query_better_than_threshold=0.2,
             best_model_func_raw=gpt_complete,
-            best_model_name=global_config.get("analysisModel"),    
+            best_model_name=global_config.get("analysisModel"),
             best_model_max_token_size=32768,
             best_model_max_async=16,
             cheap_model_func_raw=gpt_complete,
             cheap_model_name=global_config.get("processingModel"),
             cheap_model_max_token_size=32768,
             cheap_model_max_async=16,
-            caption_model_func_raw=dashscope_caption_complete,
-            caption_model_name=global_config.get("caption_model"),
-            caption_model_max_async=3
+            caption_model_func_raw=llava_caption_complete,
+            caption_model_name=global_config.get("llava_model_id", "llava-hf/llava-1.5-7b-hf"),
+            caption_model_max_async=1  # Local model, limit concurrency
         )
-        
+
         videorag_instance = VideoRAG(
             llm=videorag_llm_config,
             working_dir=session_working_dir,
-            ali_dashscope_api_key=global_config.get("ali_dashscope_api_key"),
-            ali_dashscope_base_url=global_config.get("ali_dashscope_base_url"),
-            caption_model=global_config.get("caption_model"),
-            asr_model=global_config.get("asr_model"),
+            whisper_model_size=global_config.get("whisper_model_size", "base"),
+            llava_use_4bit=global_config.get("llava_use_4bit", True),
+            llava_model_id=global_config.get("llava_model_id", "llava-hf/llava-1.5-7b-hf"),
             openai_api_key=global_config.get("openai_api_key"),
             openai_base_url=global_config.get("openai_base_url"),
             imagebind_client=imagebind_client,  # Pass HTTP client
         )
-        
+
         # Define progress callback - directly write to JSON file
         def progress_callback(step_name, message, indexed_video_path=None):
             status_data = {
@@ -773,30 +782,29 @@ def query_worker_process(chat_id, query, global_config, server_url):
             embedding_func_max_async=16,
             query_better_than_threshold=0.2,
             best_model_func_raw=gpt_complete,
-            best_model_name=global_config.get("analysisModel"),    
+            best_model_name=global_config.get("analysisModel"),
             best_model_max_token_size=32768,
             best_model_max_async=16,
             cheap_model_func_raw=gpt_complete,
             cheap_model_name=global_config.get("processingModel"),
             cheap_model_max_token_size=32768,
             cheap_model_max_async=16,
-            caption_model_func_raw=dashscope_caption_complete,
-            caption_model_name=global_config.get("caption_model"),
-            caption_model_max_async=3
+            caption_model_func_raw=llava_caption_complete,
+            caption_model_name=global_config.get("llava_model_id", "llava-hf/llava-1.5-7b-hf"),
+            caption_model_max_async=1  # Local model, limit concurrency
         )
-        
+
         videorag_instance = VideoRAG(
             llm=videorag_llm_config,
             working_dir=session_working_dir,
-            ali_dashscope_api_key=global_config.get("ali_dashscope_api_key"),
-            ali_dashscope_base_url=global_config.get("ali_dashscope_base_url"),
-            caption_model=global_config.get("caption_model"),
-            asr_model=global_config.get("asr_model"),
+            whisper_model_size=global_config.get("whisper_model_size", "base"),
+            llava_use_4bit=global_config.get("llava_use_4bit", True),
+            llava_model_id=global_config.get("llava_model_id", "llava-hf/llava-1.5-7b-hf"),
             openai_api_key=global_config.get("openai_api_key"),
             openai_base_url=global_config.get("openai_base_url"),
             imagebind_client=imagebind_client,  # Pass HTTP client
         )
-        
+
         # Step 2: Processing
         update_query_status({
             "status": "processing", 
@@ -1370,15 +1378,16 @@ def signal_handler(signum, frame):
     cleanup_on_exit()
     exit(0)
 
-if __name__ == '__main__':
+def main():
+    """Main entry point for the VideoRAG API server"""
     # Must call freeze_support() at the beginning to support multiprocessing after packaging
     multiprocessing.freeze_support()
-    
+
     # Register cleanup function and signal handler
     atexit.register(cleanup_on_exit)
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
-    
+
     # Windows special handling
     if os.name == 'nt':  # Windows
         try:
@@ -1391,7 +1400,7 @@ if __name__ == '__main__':
         except ImportError:
             log_to_file("⚠️ win32api not available, using basic signal handling")
             pass
-    
+
     # Set process name only in main process
     try:
         import setproctitle
@@ -1400,14 +1409,14 @@ if __name__ == '__main__':
         import sys
         if hasattr(sys, 'argv'):
             sys.argv[0] = 'videorag-api-server'
-    
+
     # Port configuration - centralized in main
     DEFAULT_PORT = 64451
     PORT_RANGE_START = 64451
     PORT_RANGE_END = 64470
-    
+
     # Note: Do not initialize manager instance here directly, but use get_ function for delayed initialization
-    
+
     try:
         SERVER_PORT = None
 
@@ -1423,14 +1432,14 @@ if __name__ == '__main__':
 
         # Now it is safe to set multiprocessing start method
         multiprocessing.set_start_method('spawn')
-        
+
         log_to_file(f"🚀 Starting VideoRAG API with global ImageBind on port {SERVER_PORT}")
         log_to_file(f"📝 Main process PID: {os.getpid()}")
-        
+
         # Use factory function to create Flask app
         app = create_app()
         app.run(host='0.0.0.0', port=SERVER_PORT, debug=False, threaded=True)
-        
+
     except KeyboardInterrupt:
         log_to_file("🔔 Received keyboard interrupt")
         cleanup_on_exit()
@@ -1439,4 +1448,8 @@ if __name__ == '__main__':
         cleanup_on_exit()
         exit(1)
     finally:
-        cleanup_on_exit() 
+        cleanup_on_exit()
+
+
+if __name__ == '__main__':
+    main() 

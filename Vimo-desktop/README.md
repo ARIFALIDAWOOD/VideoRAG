@@ -69,7 +69,38 @@ The packaged version will be available soon! In the meantime, please use Option 
 
 #### Step 1: Set Up and Start Backend Service
 
-Since Vimo utilizes a Python-based VideoRAG server as its backend, please follow the steps below to create the appropriate Python environment:
+Since Vimo utilizes a Python-based VideoRAG server as its backend, we recommend using **uv** for fast and reliable dependency management.
+
+##### Option A: Quick Setup with uv (Recommended)
+
+```bash
+# Install uv (if not already installed)
+# macOS/Linux:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows (PowerShell):
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Navigate to backend directory
+cd python_backend
+
+# Run setup script (installs all dependencies)
+# macOS/Linux:
+./setup.sh
+
+# Windows (PowerShell):
+.\setup.ps1
+```
+
+The backend will **auto-start** when you launch the Vimo desktop app in development mode!
+
+To manually start the backend:
+```bash
+cd python_backend
+uv run python videorag_api.py
+```
+
+##### Option B: Manual Setup with conda/pip
 
 ```bash
 conda create --name vimo python=3.11
@@ -87,19 +118,20 @@ pip install --no-deps git+https://github.com/facebookresearch/ImageBind.git@3fcf
 pip install timm ftfy regex einops fvcore eva-decord==0.6.1 iopath matplotlib types-regex cartopy
 
 # Audio processing and vector databases
-pip install neo4j hnswlib xxhash nano-vectordb
+pip install neo4j chroma-hnswlib xxhash nano-vectordb
 
 # Language models and utilities
-pip install tiktoken openai tenacity dashscope
+pip install tiktoken openai tenacity
+
+# Local ASR and Vision models
+pip install faster-whisper transformers accelerate bitsandbytes pillow
 
 # Server
 pip install flask psutil flask_cors setproctitle
 ```
 
-Once the environment is set up, start the VideoRAG server using the following commands:
-
-``` bash
-# Navigate to backend directory and start API server
+Then start the server:
+```bash
 cd python_backend
 python videorag_api.py
 ```

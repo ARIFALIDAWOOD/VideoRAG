@@ -20,17 +20,16 @@ export const VideoRAGConfigModal = ({ isOpen, onClose }: VideoRAGConfigProps) =>
   } = useVideoRAGService()
   
   const [config, setConfig] = useState<VideoRAGConfig>({
-    ali_dashscope_api_key: '',
-    ali_dashscope_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     openai_api_key: '',
-    openai_base_url: 'https://api.nuwaapi.com/v1',
-    image_bind_model_path: '/Users/renxubin/Desktop/videorag-store/imagebind_huge/imagebind_huge.pth',
+    openai_base_url: 'https://api.openai.com/v1',
+    whisper_model_size: 'base',
+    llava_use_4bit: true,
+    image_bind_model_path: '',
     base_storage_path: './videorag-sessions'
   })
-  
+
   // Local check configuration completeness, not dependent on network status
-  const isConfigured = !!(config.openai_api_key && 
-                          config.ali_dashscope_api_key && 
+  const isConfigured = !!(config.openai_api_key &&
                           config.image_bind_model_path)
   
   const [showApiKeys, setShowApiKeys] = useState(false)
@@ -211,7 +210,7 @@ export const VideoRAGConfigModal = ({ isOpen, onClose }: VideoRAGConfigProps) =>
           {/* API Keys Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">API Keys</h3>
+              <h3 className="font-medium">API Configuration</h3>
               <Button
                 size="sm"
                 variant="outline"
@@ -247,31 +246,49 @@ export const VideoRAGConfigModal = ({ isOpen, onClose }: VideoRAGConfigProps) =>
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+            </div>
+          </div>
 
+          {/* Local Model Configuration */}
+          <div className="space-y-4">
+            <h3 className="font-medium">Local Model Configuration</h3>
+            <p className="text-sm text-gray-500">Configure local models for speech recognition and video captioning (no API costs)</p>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Alibaba DashScope API Key *
+                  Whisper Model Size (ASR)
                 </label>
-                <input
-                  type={showApiKeys ? 'text' : 'password'}
-                  value={config.ali_dashscope_api_key}
-                  onChange={(e) => handleConfigChange('ali_dashscope_api_key', e.target.value)}
-                  placeholder="sk-..."
+                <select
+                  value={config.whisper_model_size}
+                  onChange={(e) => handleConfigChange('whisper_model_size', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                >
+                  <option value="tiny">Tiny (~1GB VRAM)</option>
+                  <option value="base">Base (~1GB VRAM)</option>
+                  <option value="small">Small (~2GB VRAM)</option>
+                  <option value="medium">Medium (~5GB VRAM)</option>
+                  <option value="large-v2">Large-v2 (~10GB VRAM)</option>
+                  <option value="large-v3">Large-v3 (~10GB VRAM)</option>
+                </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  DashScope Base URL
+                  LLaVA Quantization
                 </label>
-                <input
-                  type="text"
-                  value={config.ali_dashscope_base_url}
-                  onChange={(e) => handleConfigChange('ali_dashscope_base_url', e.target.value)}
-                  placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex items-center space-x-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="llava4bit"
+                    checked={config.llava_use_4bit}
+                    onChange={(e) => handleConfigChange('llava_use_4bit', e.target.checked ? 'true' : 'false')}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="llava4bit" className="text-sm">
+                    Use 4-bit quantization (~4GB vs ~14GB VRAM)
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -323,9 +340,9 @@ export const VideoRAGConfigModal = ({ isOpen, onClose }: VideoRAGConfigProps) =>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
-            disabled={loading.initializing || !config.openai_api_key || !config.ali_dashscope_api_key || !config.image_bind_model_path}
+            disabled={loading.initializing || !config.openai_api_key || !config.image_bind_model_path}
           >
             {loading.initializing ? 'Configuring...' : 'Save & Configure'}
           </Button>

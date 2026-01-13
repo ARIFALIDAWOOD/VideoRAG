@@ -49,7 +49,7 @@ export function startVideoRAGService(): Promise<boolean> {
     try {
       // Check if we're in development environment
       const isDev = process.env.NODE_ENV === 'development'
-      
+
       // Prevent multiple resolve/reject
       let resolved = false
       const safeResolve = (value: boolean) => {
@@ -66,9 +66,74 @@ export function startVideoRAGService(): Promise<boolean> {
       }
 
       if (isDev) {
-        // Development mode: skip starting backend, but still scan for existing service
-        console.log('🚀 Development mode detected - skipping backend service startup')
-        console.log('💡 In development, scanning for manually started Python backend...')
+        // Development mode: start backend using uv
+        console.log('🚀 Development mode detected - starting backend with uv...')
+
+        // In dev mode, __dirname is typically .../Vimo-desktop/out/main
+        // So we need to go up 2 levels to reach Vimo-desktop, then into python_backend
+        const backendPath = path.join(__dirname, '..', '..', 'python_backend')
+        console.log(`📁 Backend path: ${backendPath}`)
+
+        // Check if uv is available
+        try {
+          const { execSync } = await import('child_process')
+          execSync('uv --version', { stdio: 'pipe' })
+          console.log('✅ uv is available')
+        } catch (e) {
+          console.log('⚠️ uv not found, falling back to scanning for manually started backend...')
+          // Fall through to scanning logic
+        }
+
+        // Try to start with uv
+        try {
+          console.log('🚀 Starting VideoRAG backend with uv run...')
+
+          // On Windows, use cmd /c to run the command; on Unix, run directly
+          const isWindows = process.platform === 'win32'
+          const spawnCommand = isWindows ? 'cmd' : 'uv'
+          const spawnArgs = isWindows
+            ? ['/c', 'uv', 'run', 'python', 'videorag_api.py']
+            : ['run', 'python', 'videorag_api.py']
+
+          pythonProcess = spawn(spawnCommand, spawnArgs, {
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: backendPath,
+            env: { ...process.env }
+          })
+
+          pythonProcess.stdout?.on('data', (data) => {
+            const output = data.toString()
+            console.log(`VideoRAG API: ${output}`)
+          })
+
+          pythonProcess.stderr?.on('data', (data) => {
+            const errorStr = data.toString()
+            // Filter out common warnings that aren't errors
+            if (!errorStr.includes('UserWarning') && !errorStr.includes('FutureWarning')) {
+              console.error(`VideoRAG API Error: ${errorStr}`)
+            }
+          })
+
+          pythonProcess.on('close', (code) => {
+            console.log(`VideoRAG API process exited with code ${code}`)
+            pythonProcess = null
+            if (!resolved) {
+              safeReject(new Error(`VideoRAG process exited with code ${code}`))
+            }
+          })
+
+          pythonProcess.on('error', (error) => {
+            console.error(`Python process error:`, error)
+            if (!resolved) {
+              safeReject(error)
+            }
+          })
+
+          console.log('✅ Started backend process with uv')
+        } catch (startError) {
+          console.error('❌ Failed to start with uv:', startError)
+          console.log('💡 Falling back to scanning for manually started backend...')
+        }
       } else {
         // Production mode: start the packaged executable
         console.log('🚀 Production mode - starting packaged backend service')
@@ -241,62 +306,56 @@ async function initializeVideoRAGConfig(): Promise<void> {
     console.log('🔧 Loaded settings:', {
       ...settings,
       // Hide sensitive information
-      openaiApiKey: settings.openaiApiKey ? '***' : 'NOT_SET',
-      dashscopeApiKey: settings.dashscopeApiKey ? '***' : 'NOT_SET'
+      openaiApiKey: settings.openaiApiKey ? '***' : 'NOT_SET'
     })
-    
+
     // 2. Dynamically build ImageBind model path
     let imagebindModelPath = ''
     if (settings.storeDirectory) {
       imagebindModelPath = require('path').join(settings.storeDirectory, 'imagebind_huge', 'imagebind_huge.pth')
       console.log('🔧 Constructed ImageBind path:', imagebindModelPath)
     }
-    
+
     // 3. Build VideoRAG configuration object (only set default values for allowed fields)
     const videoragConfig = {
       // Required fields - no default values
-      ali_dashscope_api_key: settings.dashscopeApiKey,
       openai_api_key: settings.openaiApiKey,
       image_bind_model_path: imagebindModelPath, // Use dynamically built path
       base_storage_path: settings.storeDirectory,
-      
-      // Fields with default values
-      ali_dashscope_base_url: settings.dashscopeBaseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+
+      // OpenAI configuration
       openai_base_url: settings.openaiBaseUrl || 'https://api.openai.com/v1',
       analysisModel: settings.analysisModel || 'gpt-4o-mini',
       processingModel: settings.processingModel || 'gpt-4o-mini',
-      caption_model: settings.captionModel || 'qwen-vl-plus-latest',
-      asr_model: settings.asrModel || 'paraformer-realtime-v2'
+
+      // Local model configuration (no API keys needed)
+      whisper_model_size: settings.whisperModelSize || 'base',
+      llava_use_4bit: settings.llavaUse4bit !== false, // Default to true
+      llava_model_id: 'llava-hf/llava-1.5-7b-hf'
     }
-    
+
     console.log('🔧 VideoRAG configuration validation:', {
-      ali_dashscope_api_key: videoragConfig.ali_dashscope_api_key ? '✅ SET' : '❌ MISSING',
-      ali_dashscope_base_url: '✅ SET (default allowed)',
       openai_api_key: videoragConfig.openai_api_key ? '✅ SET' : '❌ MISSING',
       openai_base_url: '✅ SET (default allowed)',
       image_bind_model_path: videoragConfig.image_bind_model_path ? '✅ SET' : '❌ MISSING',
       base_storage_path: videoragConfig.base_storage_path ? '✅ SET' : '❌ MISSING',
       analysisModel: '✅ SET (default allowed)',
       processingModel: '✅ SET (default allowed)',
-      caption_model: '✅ SET (default allowed)',
-      asr_model: '✅ SET (default allowed)'
+      whisper_model_size: `✅ SET (${videoragConfig.whisper_model_size})`,
+      llava_use_4bit: `✅ SET (${videoragConfig.llava_use_4bit})`
     })
-    
+
     // 4. Validate required fields
     const missingFields: string[] = []
-    
-    if (!videoragConfig.ali_dashscope_api_key || videoragConfig.ali_dashscope_api_key.trim() === '') {
-      missingFields.push('Ali Dashscope API Key (dashscopeApiKey)')
-    }
-    
+
     if (!videoragConfig.openai_api_key || videoragConfig.openai_api_key.trim() === '') {
       missingFields.push('OpenAI API Key (openaiApiKey)')
     }
-    
+
     if (!videoragConfig.base_storage_path || videoragConfig.base_storage_path.trim() === '') {
       missingFields.push('Base Storage Path (storeDirectory)')
     }
-    
+
     if (!videoragConfig.image_bind_model_path || videoragConfig.image_bind_model_path.trim() === '') {
       missingFields.push('ImageBind Model Path (storeDirectory + imagebind_huge/imagebind_huge.pth)')
     }
@@ -358,7 +417,6 @@ async function initializeVideoRAGConfig(): Promise<void> {
     console.log('🔧 All required configuration validated successfully:', {
       ...videoragConfig,
       // Hide sensitive information for logging
-      ali_dashscope_api_key: '***',
       openai_api_key: '***'
     })
     
@@ -395,15 +453,16 @@ async function loadSettingsFromFile(): Promise<{ success: boolean; settings?: an
     let settings: any = {
       // Only set default values for fields with allowed defaults
       openaiBaseUrl: 'https://api.openai.com/v1',
-      dashscopeBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       processingModel: 'gpt-4o-mini',
       analysisModel: 'gpt-4o-mini',
-      
+
+      // Local model configuration (no API keys needed)
+      whisperModelSize: 'base',
+      llavaUse4bit: true,
+
       // Required fields without default values
       openaiApiKey: '',
-      dashscopeApiKey: '',
       storeDirectory: '', // This determines the imagebind model path
-      // imagebindModelPath field removed, because it is dynamically built
     }
 
     // Try to load bootstrap configuration
@@ -477,17 +536,20 @@ export function setupVideoRAGHandlers() {
   ipcMain.handle('videorag:stop-service', async () => {
     try {
       const isDev = process.env.NODE_ENV === 'development'
-      
+
+      // Both dev and production: stop the service if running
+      if (pythonProcess && !pythonProcess.killed) {
+        stopVideoRAGService()
+        return { success: true, message: 'Service stopped successfully' }
+      }
+
       if (isDev) {
-        // Development mode: return mock response
-        return { 
-          success: true, 
-          message: 'Development mode - backend service not managed by Electron'
+        return {
+          success: true,
+          message: 'No backend process to stop'
         }
       }
-      
-      // Production mode: actually stop the service
-      stopVideoRAGService()
+
       return { success: true, message: 'Service stopped successfully' }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -497,19 +559,7 @@ export function setupVideoRAGHandlers() {
   // Get service status
   ipcMain.handle('videorag:service-status', async () => {
     try {
-      const isDev = process.env.NODE_ENV === 'development'
-      
-      if (isDev) {
-        // Development mode: return mock status
-        return { 
-          success: true, 
-          isRunning: false, 
-          pythonProcess: 'development_mode',
-          message: 'Development mode - backend service not managed by Electron'
-        }
-      }
-      
-      // Production mode: check actual process status
+      // Check actual process status (works for both dev and production)
       const isRunning = pythonProcess && !pythonProcess.killed
       return { success: true, isRunning, pythonProcess: isRunning ? 'running' : 'stopped' }
     } catch (error: any) {
@@ -660,6 +710,8 @@ export function setupVideoRAGHandlers() {
   // Load ImageBind model
   ipcMain.handle('videorag:load-imagebind', async () => {
     try {
+      // Ensure config is initialized first (ImageBind needs model path from config)
+      await initializeVideoRAGConfig()
       const result = await callVideoRAGAPI('/imagebind/load', 'POST')
       return { success: true, data: result }
     } catch (error: any) {

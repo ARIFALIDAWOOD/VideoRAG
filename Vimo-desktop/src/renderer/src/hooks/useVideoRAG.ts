@@ -9,10 +9,10 @@ export interface VideoIndexStatus {
 }
 
 export interface VideoRAGConfig {
-  ali_dashscope_api_key: string
-  ali_dashscope_base_url: string
   openai_api_key: string
   openai_base_url: string
+  whisper_model_size: string
+  llava_use_4bit: boolean
   image_bind_model_path: string
   base_storage_path?: string
 }

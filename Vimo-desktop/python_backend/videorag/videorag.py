@@ -79,12 +79,12 @@ class VideoRAG:
     enable_local: bool = True
     enable_naive_rag: bool = True
 
-    # api key
-    ali_dashscope_api_key: str = None
-    ali_dashscope_base_url: str = None
-    caption_model: str = None
-    asr_model: str = None
+    # Local model configuration
+    whisper_model_size: str = "base"  # tiny, base, small, medium, large-v2, large-v3
+    llava_use_4bit: bool = True  # Use 4-bit quantization for LLaVA
+    llava_model_id: str = "llava-hf/llava-1.5-7b-hf"
 
+    # OpenAI API configuration
     openai_api_key: str = None
     openai_base_url: str = None
 
@@ -132,10 +132,6 @@ class VideoRAG:
         # Configure logger to write to file
         log_file = os.path.join(self.working_dir, "log.txt")
         
-        assert self.ali_dashscope_api_key is not None, "ali_dashscope_api_key is required"
-        assert self.ali_dashscope_base_url is not None, "ali_dashscope_base_url is required"
-        assert self.caption_model is not None, "caption_model is required"
-        assert self.asr_model is not None, "asr_model is required"
         assert self.openai_api_key is not None, "openai_api_key is required"
         assert self.openai_base_url is not None, "openai_base_url is required"
 
@@ -183,10 +179,9 @@ class VideoRAG:
             "query_better_than_threshold": self.query_better_than_threshold,
             "enable_local": self.enable_local,
             "enable_naive_rag": self.enable_naive_rag,
-            "ali_dashscope_api_key": self.ali_dashscope_api_key,
-            "ali_dashscope_base_url": self.ali_dashscope_base_url,
-            "caption_model": self.caption_model,
-            "asr_model": self.asr_model,
+            "whisper_model_size": self.whisper_model_size,
+            "llava_use_4bit": self.llava_use_4bit,
+            "llava_model_id": self.llava_model_id,
             "openai_api_key": self.openai_api_key,
             "openai_base_url": self.openai_base_url,
             "chunk_func": self.chunk_func,

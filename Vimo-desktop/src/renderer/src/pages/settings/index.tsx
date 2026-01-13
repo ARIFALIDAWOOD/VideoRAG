@@ -26,15 +26,14 @@ interface SettingsState {
   openaiApiKey: string;
   processingModel: string; // processing model - for massive preprocessing
   analysisModel: string;   // analysis model - for fine-grained analysis
-  
-  // DashScope Configuration
-  dashscopeApiKey: string;
-  captionModel: string;    // video description model
-  asrModel: string;        // speech recognition model
-  
+
+  // Local Model Configuration
+  whisperModelSize: string;  // Whisper model size for ASR
+  llavaUse4bit: boolean;     // Use 4-bit quantization for LLaVA
+
   // System Configuration
   storeDirectory: string; // model storage directory
-  
+
   // Initialization tracking
   imagebindInstalled: boolean;
 }
@@ -44,10 +43,9 @@ const Settings = () => {
     openaiBaseUrl: '',
     openaiApiKey: '',
     processingModel: 'gpt-4o-mini',
-    analysisModel: 'gpt-4o-mini', 
-    dashscopeApiKey: '',
-    captionModel: 'qwen-vl-plus-latest',
-    asrModel: 'paraformer-realtime-v2',
+    analysisModel: 'gpt-4o-mini',
+    whisperModelSize: 'base',
+    llavaUse4bit: true,
     storeDirectory: '',
     imagebindInstalled: false,
   });
@@ -175,8 +173,8 @@ const ModelStatusSection = ({ storeDirectory }: { storeDirectory: string }) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleDashscopeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSettings((prev) => ({ ...prev, dashscopeApiKey: e.target.value }));
+  const handleLocalModelChange = (field: string, value: string | boolean) => {
+    setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleApiConfigSave = async () => {
@@ -369,64 +367,58 @@ const ModelStatusSection = ({ storeDirectory }: { storeDirectory: string }) => {
                 </div>
               </div>
 
-              {/* DashScope Configuration */}
-              <div className="space-y-4 p-4 border rounded-lg bg-orange-50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">DashScope Configuration</h3>
-                    <p className="text-sm text-gray-600">Configure Alibaba Cloud DashScope API for video captioning</p>
-                  </div>
-                  <a
-                    href="https://www.alibabacloud.com/help/en/model-studio/get-api-key?spm=a2c63.p38356.0.i1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    <ExternalLink size={14} />
-                    Get API Key Tutorial
-                  </a>
+              {/* Local Model Configuration */}
+              <div className="space-y-4 p-4 border rounded-lg bg-green-50">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">Local Model Configuration</h3>
+                  <p className="text-sm text-gray-600">Configure local AI models for speech recognition and video captioning (no API costs)</p>
                 </div>
-                
+
                 <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium block mb-2">
-                      DashScope API Key
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="sk-..."
-                      value={settings.dashscopeApiKey}
-                      onChange={handleDashscopeChange}
-                      className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    />
-                  </div>
-                  
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium block mb-2">
-                        Caption Model
+                        Whisper Model Size (ASR)
                       </label>
-                      <input
-                        type="text"
-                        value="qwen-vl-plus-latest"
-                        readOnly
-                        className="w-full px-3 py-2 text-sm border rounded-md bg-gray-100 text-gray-600"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Fixed model for video captioning tasks</p>
+                      <select
+                        value={settings.whisperModelSize}
+                        onChange={(e) => handleLocalModelChange('whisperModelSize', e.target.value)}
+                        className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="tiny">Tiny (~1GB VRAM, fastest)</option>
+                        <option value="base">Base (~1GB VRAM, balanced)</option>
+                        <option value="small">Small (~2GB VRAM, better accuracy)</option>
+                        <option value="medium">Medium (~5GB VRAM, high accuracy)</option>
+                        <option value="large-v2">Large-v2 (~10GB VRAM, best accuracy)</option>
+                        <option value="large-v3">Large-v3 (~10GB VRAM, latest)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">Local speech recognition model size</p>
                     </div>
-                    
+
                     <div>
                       <label className="text-sm font-medium block mb-2">
-                        ASR Model
+                        LLaVA 4-bit Quantization
                       </label>
-                      <input
-                        type="text"
-                        value="paraformer-realtime-v2"
-                        readOnly
-                        className="w-full px-3 py-2 text-sm border rounded-md bg-gray-100 text-gray-600"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Fixed model for speech recognition tasks</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <input
+                          type="checkbox"
+                          id="llava4bit"
+                          checked={settings.llavaUse4bit}
+                          onChange={(e) => handleLocalModelChange('llavaUse4bit', e.target.checked)}
+                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                        <label htmlFor="llava4bit" className="text-sm text-gray-700">
+                          Enable 4-bit quantization (reduces VRAM from ~14GB to ~4GB)
+                        </label>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Recommended for GPUs with less than 12GB VRAM</p>
                     </div>
+                  </div>
+
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Local models require a GPU for reasonable performance. Models will be downloaded automatically on first use.
+                    </p>
                   </div>
                 </div>
               </div>

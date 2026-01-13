@@ -36,15 +36,14 @@ const InitializationWizard: React.FC<InitializationWizardProps> = ({ onComplete 
   const [isInitializing, setIsInitializing] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // API Key configuration status
+  // API Key and local model configuration status
   const [apiKeySettings, setApiKeySettings] = useState({
     openaiBaseUrl: 'https://api.openai.com/v1',
     openaiApiKey: '',
     processingModel: 'gpt-4o-mini',
     analysisModel: 'gpt-4o-mini',
-    dashscopeApiKey: '',
-    captionModel: 'qwen-vl-plus-latest',
-    asrModel: 'paraformer-realtime-v2'
+    whisperModelSize: 'base',
+    llavaUse4bit: true
   });
 
 
@@ -480,68 +479,62 @@ const InitializationWizard: React.FC<InitializationWizardProps> = ({ onComplete 
           </div>
         </div>
 
-        {/* DashScope Configuration */}
-        <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-6 border border-orange-100">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center">
-                <Settings className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-orange-900">DashScope Configuration</h3>
-                <p className="text-sm text-orange-700">Alibaba Cloud API for video captioning</p>
-              </div>
+        {/* Local Model Configuration */}
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+              <Settings className="w-6 h-6 text-white" />
             </div>
-            <a
-              href="https://www.alibabacloud.com/help/en/model-studio/get-api-key?spm=a2c63.p38356.0.i1"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              <ExternalLink size={14} />
-              Get API Key Tutorial
-            </a>
+            <div>
+              <h3 className="text-lg font-bold text-green-900">Local Model Configuration</h3>
+              <p className="text-sm text-green-700">Free local AI models for speech recognition and video captioning</p>
+            </div>
           </div>
-          
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-2">
-              DashScope API Key
-            </label>
-            <input
-              type="password"
-              placeholder="sk-..."
-              value={apiKeySettings.dashscopeApiKey}
-              onChange={(e) => handleApiKeyChange('dashscopeApiKey', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-2">
-                Caption Model
+                Whisper Model Size (ASR)
               </label>
-              <input
-                type="text"
-                value="qwen-vl-plus-latest"
-                readOnly
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">Fixed model for video captioning tasks</p>
+              <select
+                value={apiKeySettings.whisperModelSize}
+                onChange={(e) => handleApiKeyChange('whisperModelSize', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              >
+                <option value="tiny">Tiny (~1GB VRAM, fastest)</option>
+                <option value="base">Base (~1GB VRAM, balanced)</option>
+                <option value="small">Small (~2GB VRAM, better accuracy)</option>
+                <option value="medium">Medium (~5GB VRAM, high accuracy)</option>
+                <option value="large-v2">Large-v2 (~10GB VRAM, best accuracy)</option>
+                <option value="large-v3">Large-v3 (~10GB VRAM, latest)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Local speech recognition model size</p>
             </div>
-            
+
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-2">
-                ASR Model
+                LLaVA 4-bit Quantization
               </label>
-              <input
-                type="text"
-                value="paraformer-realtime-v2"
-                readOnly
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md bg-gray-100 text-gray-600"
-              />
-              <p className="text-xs text-gray-500 mt-1">Fixed model for speech recognition tasks</p>
+              <div className="flex items-center gap-3 mt-2 p-2 bg-white rounded-md border border-gray-200">
+                <input
+                  type="checkbox"
+                  id="llava4bit-wizard"
+                  checked={apiKeySettings.llavaUse4bit}
+                  onChange={(e) => handleApiKeyChange('llavaUse4bit', e.target.checked.toString())}
+                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                />
+                <label htmlFor="llava4bit-wizard" className="text-sm text-gray-700">
+                  Enable 4-bit (reduces VRAM from ~14GB to ~4GB)
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Recommended for GPUs with less than 12GB VRAM</p>
             </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Local models require a GPU for reasonable performance. Models will be downloaded automatically on first use.
+            </p>
           </div>
         </div>
       </div>

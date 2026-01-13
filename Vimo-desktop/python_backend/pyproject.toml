@@ -1,0 +1,77 @@
+[project]
+name = "videorag-backend"
+version = "0.1.0"
+description = "VideoRAG Python Backend for Vimo"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # Core numerical and deep learning
+    "numpy>=1.26.0,<2.0.0",
+    "torch>=2.1.0,<2.2.0",
+    "torchvision>=0.16.0,<0.17.0",
+    "torchaudio>=2.1.0,<2.2.0",
+
+    # Video processing
+    "moviepy>=1.0.3,<2.0.0",  # Pin to 1.x for moviepy.editor compatibility
+    "pytorchvideo",  # from git source
+
+    # Multi-modal and vision libraries
+    "timm",
+    "ftfy",
+    "regex",
+    "einops",
+    "fvcore",
+    "eva-decord>=0.6.1",
+    "iopath",
+    "matplotlib",
+    "types-regex",
+    "cartopy",
+
+    # Audio processing and vector databases
+    "neo4j",
+    "chroma-hnswlib",  # Windows-compatible fork of hnswlib with pre-built wheels
+    "xxhash",
+    "nano-vectordb",
+
+    # Language models and utilities
+    "tiktoken",
+    "openai",
+    "tenacity",
+
+    # Local ASR and Vision models
+    "faster-whisper>=1.0.0",
+    "transformers>=4.36.0,<4.45.0",  # Limited for torch 2.1.x compatibility
+    "accelerate>=0.25.0",
+    "bitsandbytes>=0.41.0;platform_system!='Darwin'",
+    "pillow>=10.0.0",
+
+    # Server
+    "flask",
+    "psutil",
+    "flask-cors",
+    "setproctitle",
+    "certifi",
+    "requests",
+]
+
+[project.scripts]
+videorag-server = "videorag_api:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["videorag"]
+
+[dependency-groups]
+dev = []
+
+[tool.uv]
+# Override hnswlib with chroma-hnswlib for Windows compatibility
+override-dependencies = ["chroma-hnswlib"]
+
+[tool.uv.sources]
+pytorchvideo = { git = "https://github.com/Re-bin/pytorchvideo.git", rev = "58f50da4e4b7bf0b17b1211dc6b283ba42e522df" }
+
+# ImageBind must be installed manually after uv sync (has conflicting deps):
+# uv pip install --no-deps git+https://github.com/facebookresearch/ImageBind.git@3fcf5c9039de97f6ff5528ee4a9dce903c5979b3
