@@ -29,9 +29,31 @@ Vimo is a state-of-the-art agentic video understanding platform with intelligent
 
 ### Key Features
 
+* **Local-First Architecture**: All video processing (ASR, captioning, embeddings) runs locally on your machine - no cloud APIs needed except for LLM reasoning.
 * **Agentic Intelligence**: Specifically designed for conversational video analysis, autonomous content understanding, and intelligent user interaction.
 * **Multi-modal Processing**: Advanced fusion of visual, audio, and temporal information for comprehensive video understanding.
 * **Real-time Interaction**: Optimized for responsive user experience with efficient query responses.
+* **Privacy-Focused**: Your videos never leave your device - all processing happens locally.
+
+### Local-First Architecture
+
+Vimo processes your videos entirely on your local machine, ensuring privacy and reducing cloud API costs:
+
+| Component | Technology | Runs On |
+|-----------|-----------|---------|
+| **Speech Recognition (ASR)** | [Whisper](https://github.com/openai/whisper) via faster-whisper | Local (CPU/GPU) |
+| **Video Captioning** | [LLaVA](https://llava-vl.github.io/) with 4-bit quantization | Local (GPU recommended) |
+| **Video Embeddings** | [ImageBind](https://github.com/facebookresearch/ImageBind) | Local (GPU recommended) |
+| **LLM Reasoning** | OpenAI GPT-4o-mini (configurable) | Cloud API |
+
+**Hardware Requirements:**
+
+| Configuration | VRAM | Notes |
+|--------------|------|-------|
+| Whisper (tiny/base) + LLaVA 4-bit | ~6GB | Good for most users |
+| Whisper (small) + LLaVA 4-bit | ~7GB | Better accuracy |
+| Whisper (medium) + LLaVA 4-bit | ~8GB | High accuracy |
+| CPU-only mode | N/A | Slower but works without GPU |
 
 ### Core Technology
 
@@ -156,11 +178,26 @@ We embrace the open-source spirit and welcome contributions from the community! 
 
 🤗 Feel free to submit issues and pull requests!
 
-## 4. Acknowledgement
+## 4. Configuration
+
+Vimo's local models can be configured through the Settings page:
+
+| Setting | Options | Default |
+|---------|---------|---------|
+| **Whisper Model Size** | tiny, base, small, medium, large-v2, large-v3 | base |
+| **LLaVA 4-bit Quantization** | Enable/Disable | Enabled |
+| **OpenAI Model** | Any OpenAI model | gpt-4o-mini |
+
+Larger Whisper models provide better transcription accuracy but require more VRAM and processing time.
+
+## 5. Acknowledgement
 
 We would like to express our gratitude to the following open-source projects that have inspired and contributed to Vimo's development:
 
 - **[nano-graphrag](https://github.com/gusye1234/nano-graphrag)**: For providing innovative algorithms and techniques that enhanced our video understanding capabilities.
 - **[uitars-desktop](https://github.com/bytedance/UI-TARS-desktop)**: For inspiring our frontend development approach and providing valuable insights into desktop application architecture.
+- **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)**: For providing fast, local speech recognition capabilities.
+- **[LLaVA](https://llava-vl.github.io/)**: For enabling local vision-language understanding.
+- **[ImageBind](https://github.com/facebookresearch/ImageBind)**: For multi-modal embeddings that power our video understanding.
 
-Thank you to these amazing projects and their contributors! 🙏
+Thank you to these amazing projects and their contributors!
